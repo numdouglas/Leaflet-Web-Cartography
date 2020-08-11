@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<!--set up the structure of the web page by adding the following markup to the file-->
+<html>
+
+<head>
+
+<title>Leaflet Web Map</title>
+<!--To make use of Leaflet we need to reference its CSS and JavaScript files in the HTML file-->
+<link rel="stylesheet" href="leaflet.css" />
+<link rel="stylesheet" href="jquery-ui.css" />
+<link rel="stylesheet" href="L.Control.Sidebar.css"/>
+
+<!--Create the map and set its content to fill the screen-->
+<style>
+
+/*make the images rounded*/
+#disp_img{
+  border-radius: 25px;
+}
+/*set the text to be used by the whole document*/
+body {
+font-family: Georgia, Times, serif;}
+h1, h2 {
+font-family: Arial, Verdana, sans-serif;}
+
+/* The sidebar menu */
+.sidenav {
+    border-radius: 18px;
+    border: 2px solid #73AD21;
+    /*height: 100%; /* Full-height: remove this if you want "auto" height */
+    width: 160px; /* Set the width of the sidebar */
+    position: static; /* Fixed Sidebar (stay in place on scroll) */
+    z-index: 1; /* Stay on top */
+    top: 0; /* Stay at the top */
+    left: 0;
+    background-color: #1ea091; /* Black */
+    overflow-x: hidden; /* Disable horizontal scroll */
+    padding-top: 20px;
+}
+
+/* The navigation menu links */
+.sidenav a {
+    padding: 6px 8px 6px 16px;
+    text-decoration: none;
+    font-size: 25px;
+    color: #ffbb35;
+    display: block;
+}
+
+/* When you mouse over the navigation links, change their color */
+.sidenav a:hover {
+    color: #f1f1f1;
+}
+
+/* Style page content */
+.main {
+    margin-left: 160px; /* Same as the width of the sidebar */
+    padding: 0px 10px;
+}
+
+/* On smaller screens, where height is less than 450px, change the style of the sidebar (less padding and a smaller font size) */
+@media screen and (max-height: 450px) {
+    .sidenav {padding-top: 15px;}
+    .sidenav a {font-size: 18px;}
+}
+
+
+
+#map { height:100%; width: 100%; position: absolute; }
+    .custom .leaflet-popup-tip,
+.custom .leaflet-popup-content-wrapper {
+    background: #e93434;
+    color: #ffffff;
+
+
+
+
+}
+.legend {
+    line-height: 18px;
+    color: #555;
+}
+.legend i {
+    width: 18px;
+    height: 18px;
+    float: left;
+    margin-right: 8px;
+    opacity: 0.7;
+}
+
+
+</style>
+
+</head>
+
+<body>
+<!--Leaflet requires a <div> element to contain the map and that that <div> element have a set height.
+
+Create a <div> element with the id of "map" to contain the map by adding the following to the HTML <body>:
+
+-->
+
+
+<div id="sidebar"></div>
+<div id="resultDiv"></div>
+
+    <div id="map"></div>
+
+<!-- Add jQuery -->
+    <script src="jquery.min.js"></script>
+    <!--add leaflet, the foundation for our map and ui and sliderControl libs-->
+    <script src="leaflet.js"></script>
+    <script src="jquery-ui-1.12.1/jquery-ui.js"></script>
+    <script src="SliderControl.js"></script>
+    <script src="L.Control.Sidebar.js"></script>
+<!--MAP script-->
+<script>
+/*use ajax for fast dynamic loading of the geoJSON data*/
+        var LastFire_areas = $.ajax({
+          url:"LastFire_areas.geojson",
+          dataType: "json",
+          error: function (xhr) {
+            alert(xhr.statusText)
+          }
+
+        });
+
+
+
+                var Fire_Ban_districts = $.ajax({
+                  url:"Fire_Ban_districts.geojson",
+                  dataType: "json",
+                  error: function (xhr) {
+                    alert(xhr.statusText)
+                  }
+                });
+
+        var LastFire_areas_simplified = $.ajax({
+          url:"LastFire_areas_simplified.json",
+          dataType: "json",
+          error: function (xhr) {
+          alert(xhr.statusText)
+          }
+
+        });
+
+        var LastFire_centroids = $.ajax({
+          url:"LastFire_centroids.geojson",
+          dataType: "json",
+          success: console.log("last_points data successfully loaded."),
+          error: function (xhr) {
+            alert(xhr.statusText)
+          }
+        });
+
+
+
+
+
+
+
+
+
+        // Specify that this code should run once all the data to be displayed is fetched
+                $.when(LastFire_areas,Fire_Ban_districts,LastFire_areas_simplified,LastFire_centroids).done(function() {
+//script to initialize the map object. Set it not to zoom in when  one scrolls to avoid conflicts with the scroll down operation
+//Also set the coo-rdinates the map will be centered on and the zoom level
+    var map = L.map('map',{scrollWheelZoom:false}).setView([-34.00025,136.2092], 6);
+
+//the below url will take our previous map arguments and submit them to the open street map servers so we can get
+//a tile to render at specified coords and zoom level
+    L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+//cite the data source and display it in a watermark, set the maxscale to 18 and min scale to 7
+    attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors',maxZoom:18,minZoom:7
+
+    }).addTo(map);
+//Add the scale to our map
+
+
+
+
+
+var road_map = L.tileLayer('https://korona.geog.uni-heidelberg.de/tiles/roads/x={x}&y={y}&z={z}', {
+minZoom: 7,
+  maxZoom: 18,
+	attribution: 'Imagery from <a href="http://giscience.uni-hd.de/">GIScience Research Group @ University of Heidelberg</a> &mdash; Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+}).addTo(map);
+var terrain_map = L.tileLayer('https://stamen-tiles-{s}.a.ssl.fastly.net/terrain/{z}/{x}/{y}{r}.{ext}', {
+	attribution: 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+	subdomains: 'abcd',
+	minZoom: 7,
+	maxZoom: 18,
+	ext: 'png'
+}).addTo(map);
+var satellite_image = L.tileLayer('https://map1.vis.earthdata.nasa.gov/wmts-webmerc/MODIS_Terra_CorrectedReflectance_Bands367/default/{time}/{tilematrixset}{maxZoom}/{z}/{y}/{x}.{format}', {
+	attribution: 'Imagery provided by services from the Global Imagery Browse Services (GIBS), operated by the NASA/GSFC/Earth Science Data and Information System (<a href="https://earthdata.nasa.gov">ESDIS</a>) with funding provided by NASA/HQ.',
+	bounds: [[-85.0511287776, -179.999999975], [85.0511287776, 179.999999975]],
+	minZoom: 7,
+	maxZoom: 18,
+	format: 'jpg',
+	time: '',
+	tilematrixset: 'GoogleMapsCompatible_Level'
+}).addTo(map);
+var light_gray= L.tileLayer('http://{s}.tiles.wmflabs.org/bw-mapnik/{z}/{x}/{y}.png', {
+  minZoom: 7,
+	maxZoom: 18,
+	attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+});
+var dark_gray = L.tileLayer('https://korona.geog.uni-heidelberg.de/tiles/roadsg/x={x}&y={y}&z={z}', {
+  minZoom: 7,
+	maxZoom: 18,
+	attribution: 'Imagery from <a href="http://giscience.uni-hd.de/">GIScience Research Group @ University of Heidelberg</a> &mdash; Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    L.control.scale().addTo(map);
+
+//stored procedure to ease chaining
+var myLayer = L.geoJSON().addTo(map);
+
+
+
+var sidebar = L.control.sidebar('sidebar', {
+    position: 'right',
+    closeButton: 'true'
+});
+
+map.addControl(sidebar);
+/*The function will return the appropriate color that will be used for the color of the area that is affected
+by fire based on the frequency of occurence*/
+
+function closeNav(){
+  sidebar.show();
+}
+
+
+    function getColor_for_area(d) {
+        return d > 3000 ? '#800026' :
+               d > 2000  ? '#BD0026' :
+               d > 1000  ? '#071A1C' :
+               d > 500  ? '#224E2A' :
+               d > 250   ? '#AD8D3C' :
+               d > 150   ? '#BDB24C' :
+               d > 20   ? '#89D976' :
+                          '#FFEDA0';
+    }
+/*The function will return the appropriate color for the fire affected districts based on the
+prevalence of fires there*/
+    function getColor_for_districts(d) {
+        return d > 3500 ? '#AA4026' :
+               d > 3000 ? '#BD56ED' :
+               d > 2500  ? '#E6709A' :
+               d > 2000  ? '#FDCF23' :
+               d > 1500   ? '#4536AD' :
+               d > 1000   ? '#DEAC54' :
+               d > 500  ? '#123456' :
+                          '#56363A';
+    }
+
+
+/*The filter_functions below will filter the areas affected by fires over the years*/
+    function sixtys_Filter(feature){
+      if(feature.properties.FIREYEAR>1949&&feature.properties.FIREYEAR<1960) return true
+    }
+
+    function seventys_Filter(feature){
+          if(feature.properties.FIREYEAR>1959&&feature.properties.FIREYEAR<1970) return true
+        }
+
+
+            function eighties_Filter(feature){
+                  if(feature.properties.FIREYEAR>1970&&feature.properties.FIREYEAR<1979) return true
+                }
+
+                    function ninetys_Filter(feature){
+                          if(feature.properties.FIREYEAR>1980&&feature.properties.FIREYEAR<1989) return true
+                        }
+
+
+                            function two_ks_Filter(feature){
+                                  if(feature.properties.FIREYEAR>1990&&feature.properties.FIREYEAR<2000) return true
+                                }
+
+                                    function two_ten_Filter(feature){
+                                          if(feature.properties.FIREYEAR>2000&&feature.properties.FIREYEAR<2009) return true
+                                        }
+
+
+                                            function latest_Filter(feature){
+                                                      if(feature.properties.FIREYEAR>2010&&feature.properties.FIREYEAR<2016) return true
+                                                }
+    function summer_Filter(feature){
+      if(feature.properties.SEASON==="SUMMER") return true
+    }
+
+
+    function autumn_Filter(feature){
+          if(feature.properties.SEASON==="AUTUMN") return true
+        }
+
+
+            function spring_Filter(feature){
+                  if(feature.properties.SEASON==="SPRING") return true
+                }
+
+                    function winter_Filter(feature){
+                          if(feature.properties.SEASON==="WINTER") return true
+                        }
+
+                        function hanging_Filter(feature){
+                          return false;
+                        }
+
+
+    function large_Filter(feature){
+      if(feature.properties.area_ha>12000&&feature.properties.area_ha<70000)return true
+    }
+    function small_Filter(feature){
+      if(feature.properties.area_ha>0&&feature.properties.area_ha<5000)return true
+    }
+
+    function xxlarge_Filter(feature){
+      if(feature.properties.area_ha>70000)return true
+    }
+    function med_Filter(feature){
+      if(feature.properties.area_ha>5000&&feature.properties.area_ha<12000)return true
+    }
+
+//color districts according to fire counts
+    function style_district(feature) {
+      console.log(feature.properties.Count_)
+        return {
+            fillColor: getColor_for_districts(feature.properties.Count_),
+            weight: 0,
+            opacity: 1,
+            color: '#f47142',
+            dashArray: '3',
+            fillOpacity: 0.7
+        };
+    }
+
+    function style_area(feature) {
+
+        return {
+
+            fillColor: getColor_for_area(feature.properties.area_ha),
+            weight: 1,
+            opacity: 1,
+            color: 'black',
+            dashArray: '3',
+            fillOpacity: 1
+          };
+
+    }
+
+
+    var info = L.control();
+
+    info.onAdd = function (map) {
+        this._div = L.DomUtil.create('div', 'info'); // create a div with a class "info"
+        this._div.innerHTML +="<style>.info {padding: 6px 8px;font: 14px/16px Arial, Helvetica, sans-serif;background: white;background: rgba(255,255,255,0.8);box-shadow: 0 0 15px rgba(0,0,0,0.2);border-radius: 5px;}.info h4 {margin: 0 0 5px;color: #777;}</style>"
+
+        this.update();
+        return this._div;
+    };
+
+
+
+
+
+
+
+//ADD mouse hover functionality
+    function highlightFeature(e) {
+        var layer = e.target;
+
+        layer.setStyle({
+            weight: 5,
+            color: '#666',
+            dashArray: '',
+            fillOpacity:0.1
+        });
+
+        if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+            layer.bringToFront();
+        }
+        info.update(layer.feature.properties);
+
+    }
+    //on mouse out reset to the original style
+    function resetHighlight(e) {
+        geojson.resetStyle(e.target);
+
+
+            info.update();
+        }
+
+    //click listener that zooms to the state
+    function zoomToFeature(e) {
+    map.fitBounds(e.target.getBounds());
+}
+
+//higlight districts on hover and other functionalities
+function onEachFeature(feature, layer) {
+    layer.on({
+        mouseover: highlightFeature,
+        mouseout: resetHighlight,
+        click: zoomToFeature
+    });
+}
+
+
+geojson = L.geoJson(Fire_Ban_districts.responseJSON,{
+
+    onEachFeature: onEachFeature
+}).addTo(map);
+
+
+// method that we will use to update the control based on feature properties passed
+info.update = function (props) {
+    this._div.innerHTML = "<h4>South Australia Fire Information</h4>" +  (props ?
+        '<b>' + props.Name + '</b><br /><b>Burnt Area </b>' + props.Burnt_Area + "<b>ha</b><br  /> <img id='disp_img' src='images/"+props.Name+".jpg' height='100px' width='100px'/>"
+        : 'Hover over a state');
+};
+
+info.addTo(map);
+
+//We need to update the control when the user hovers over a state, so we’ll also modify our listeners as follows:
+
+
+
+var legend = L.control({position: 'bottomleft'});
+
+legend.onAdd = function (map) {
+
+    var div = L.DomUtil.create('div', 'info legend'),
+        areas = [0, 500, 1000, 1500, 2000, 2500, 3000, 3500],
+        labels = [];
+
+        div.innerHTML +='<h>legend(Frequency of Fires)<h></br>'
+    // loop through our density intervals and generate a label with a colored square for each interval
+
+
+
+    for (var i = 0; i < areas.length; i++) {
+      div.innerHTML +='<i style="background:' + getColor_for_districts(areas[i] + 1) + '"></i> ' +
+      areas[i] + (areas[i + 1] ? '&ndash;' + areas[i + 1] + '<br>' : '+');}
+    return div;
+};
+
+legend.addTo(map);
+
+
+
+/*add the sidebar that will provide access to the leafle-sidebar*/
+var about_projo_poper = L.control({position: 'bottomleft'});
+
+about_projo_poper.onAdd = function (map) {
+
+document.getElementById('resultDiv').innerHTML = '<div id="side_nav" class="sidenav"><a id="a" href="#">About</a><a id="b" href="#">Services</a><a id="c" href="#">Sources</a><a id="d" href="#">Contact</a></div>';
+bindingFunction();
+    // loop through our density intervals and generate a label with a colored square for each interval
+
+
+    return document.getElementById('resultDiv');
+};
+
+
+
+
+
+about_projo_poper.addTo(map);
+//this is a function that binds the html element of the given to the document since we've used innerHTML
+//it then goes on to state what should happen when that ellement is clicked
+function bindingFunction(){
+    document.getElementById('a').onclick = function() {
+      //set Sidebar content
+      sidebar.setContent('Welcome! This is a web map application that is implemented by the Leaflet JS API in partial fulfillment of Assignment 3 of the GOEOE 3019 Unit. The project aims at taking advantage of the visual realm of data representation to represent time series data on fire incidents that have occured'+
+    ' in South Australian districts since the year 1950 in an intuitive and easily analyzable format.');
+
+
+      sidebar.toggle();
+
+    },
+    document.getElementById('b').onclick = function() {
+      //set Sidebar content
+      sidebar.setContent('The app is built with functionality to make data analysis and navigation as simple as possible. The sliderControl tool will highlight all the areas affected by fires throughout the years to the presently selected year. The layer tool contains the data for the areas affected throughout the seasons. Alongside this is data on the areas hit by fires throughout the decades and interactive data on the size of the fire. The fire size markers can be selcted to display important information on the season,type,date and the area affected by that fire vent in Hectares. To make the event more vivid, an image is included with every firepoint. Take a look at the legend to get a perspective of just how hard the various districts have been hit.');
+
+
+      sidebar.toggle();
+
+    },
+
+    document.getElementById('c').onclick = function() {
+      //set Sidebar content
+      sidebar.setContent('Many thanks to the University of South Australia Fraternity for the support during the development of this project. Libraries bundled with this project include: <li>jquery</li><li>leaflet</li><li>sidebar</li> <li>slidercontrol</li>. Datasets were obtained from dataset SA');
+
+
+      sidebar.toggle();
+
+    },
+
+    document.getElementById('d').onclick = function() {
+      //set Sidebar content
+      sidebar.setContent('<li>University of South Australia code GEOE 3019</li> <li>Stefan Peters(Course Co-ordinator)</li><li>Yianni Biris- biriy002@mymail.unisa.edu.au</li>');
+
+
+      sidebar.toggle();
+
+    }
+}
+
+
+
+
+//Add the fireban districts and areas weve fetched to the map
+  L.geoJson(Fire_Ban_districts.responseJSON, {style: style_district}).addTo(map);
+
+
+
+/*The below codes sort the areas according to the year of occurence of fire incidents
+additionally it binds information to the area so that one can see the FIREDATE,SEASON AND INCIDENTTYPE*/
+    var pre_1960=L.geoJSON(LastFire_areas.responseJSON,{filter:sixtys_Filter});
+
+    var pre_1970=L.geoJSON(	LastFire_areas.responseJSON,{filter:seventys_Filter}
+
+    );
+    var pre_1980=L.geoJSON(	LastFire_areas.responseJSON,
+        {filter:eighties_Filter}
+
+    );
+    var pre_1990=L.geoJSON(	LastFire_areas.responseJSON,
+        {filter:ninetys_Filter}
+
+    );
+    var pre_2000=L.geoJSON(	LastFire_areas.responseJSON,
+        {filter:two_ks_Filter}
+
+    );
+    var pre_2010=L.geoJSON(	LastFire_areas.responseJSON,
+        {filter:two_ten_Filter}
+
+    );
+    var pre_2016=L.geoJSON(	LastFire_areas.responseJSON,
+        {filter:latest_Filter}
+
+    );
+
+    var prescribedIcon = L.icon({
+  iconUrl: 'images/marker-icon.png',
+  shadowUrl:'images/marker-shadow.png',
+  iconSize: [20, 35],
+  shadowSize:[22,37],
+  iconAnchor: [20, 35],
+  popupAnchor: [0, -28]
+});
+var bushIcon=L.icon({
+iconUrl: 'images/bush-icon.png',
+shadowUrl:'images/marker-shadow.png',
+iconSize: [20, 35],
+shadowSize:[22,37],
+iconAnchor: [20, 35],
+popupAnchor: [0, -28]
+});
+
+
+
+function oneachfearure_seasons(feature,layer){layer.bindPopup(feature.properties.area_ha+"Ha<br/><img id='disp_img' src='images/fire_repo/fire_"+Math.round(Math.random()*11)+".jpg' height='100px' width='100px'/></br><br>"+feature.properties.FIREDATE+"<br/><br>"+feature.properties.INCIDENTTY+"</br>");}
+
+
+
+
+/*get the geojson shape data filtered according to season and then attach the required image*/
+    var summer_prescribed = L.geoJSON(LastFire_centroids.responseJSON,{pointToLayer: function (feature, latlng) {if(feature.properties.INCIDENTTY=="Prescribed Burn"){
+              return L.marker(latlng, {icon: prescribedIcon});}
+            },onEachFeature: function (feature, layer) {
+        layer.bindPopup(feature.properties.area_ha+"Ha<br/><img id='disp_img' src='images/fire_repo/fire_"+Math.round(Math.random()*11)+".jpg' height='100px' width='100px'/></br><br>"+feature.properties.FIREDATE+"<br/><br>"+feature.properties.INCIDENTTY+"</br>");}
+        ,filter:summer_Filter}),
+        summer_bushy= L.geoJSON(LastFire_centroids.responseJSON,{pointToLayer: function (feature, latlng) {if(feature.properties.INCIDENTTY=="Bushfire"){
+                  return L.marker(latlng, {icon: bushIcon});}
+                },onEachFeature: function (feature, layer) {
+            layer.bindPopup(feature.properties.area_ha+"Ha<br/><img id='disp_img' src='images/fire_repo/fire_"+Math.round(Math.random()*11)+".jpg' height='100px' width='100px'/></br><br>"+feature.properties.FIREDATE+"<br/><br>"+feature.properties.INCIDENTTY+"</br>");}
+            ,filter:summer_Filter}),
+        autumn_prescribed   = L.geoJSON(LastFire_centroids.responseJSON,{pointToLayer: function (feature, latlng) {if(feature.properties.INCIDENTTY=="Prescribed Burn"){
+                  return L.marker(latlng, {icon: prescribedIcon});}
+                },onEachFeature: function (feature, layer) {
+            layer.bindPopup(feature.properties.area_ha+"Ha<br/><img id='disp_img' src='images/fire_repo/fire_"+Math.round(Math.random()*11)+".jpg' height='100px' width='100px'/></br><br>"+feature.properties.FIREDATE+"<br/><br>"+feature.properties.INCIDENTTY+"</br>");}
+            ,filter:autumn_Filter}),
+            autumn_bushy=L.geoJSON(LastFire_centroids.responseJSON,{pointToLayer: function (feature, latlng) {if(feature.properties.INCIDENTTY=="Bushfire"){
+                      return L.marker(latlng, {icon: bushIcon});}
+                    },onEachFeature: function (feature, layer) {
+                layer.bindPopup(feature.properties.area_ha+"Ha<br/><img id='disp_img' src='images/fire_repo/fire_"+Math.round(Math.random()*11)+".jpg' height='100px' width='100px'/></br><br>"+feature.properties.FIREDATE+"<br/><br>"+feature.properties.INCIDENTTY+"</br>");}
+                ,filter:autumn_Filter}),
+        spring_prescribed   = L.geoJSON(LastFire_centroids.responseJSON,{pointToLayer: function (feature, latlng) {if(feature.properties.INCIDENTTY=="Prescribed Burn"){
+                  return L.marker(latlng, {icon: prescribedIcon});}
+                },onEachFeature: function (feature, layer) {
+            layer.bindPopup(feature.properties.area_ha+"Ha<br/><img id='disp_img' src='images/fire_repo/fire_"+Math.round(Math.random()*11)+".jpg' height='100px' width='100px'/></br><br>"+feature.properties.FIREDATE+"<br/><br>"+feature.properties.INCIDENTTY+"</br>");}
+            ,filter:spring_Filter}),
+            spring_bushy=L.geoJSON(LastFire_centroids.responseJSON,{pointToLayer: function (feature, latlng) {if(feature.properties.INCIDENTTY=="Bushfire"){
+                      return L.marker(latlng, {icon:bushIcon});}
+                    },onEachFeature: function (feature, layer) {
+                layer.bindPopup(feature.properties.area_ha+"Ha<br/><img id='disp_img' src='images/fire_repo/fire_"+Math.round(Math.random()*11)+".jpg' height='100px' width='100px'/></br><br>"+feature.properties.FIREDATE+"<br/><br>"+feature.properties.INCIDENTTY+"</br>");}
+                ,filter:spring_Filter}),
+
+
+        winter_prescribed   = L.geoJSON(LastFire_centroids.responseJSON,{pointToLayer: function (feature, latlng) {if(feature.properties.INCIDENTTY=="Prescribed Burn"){
+                  return L.marker(latlng, {icon: prescribedIcon});}
+                },onEachFeature: function (feature, layer) {
+            layer.bindPopup(feature.properties.area_ha+"Ha<br/><img id='disp_img' src='images/fire_repo/fire_"+Math.round(Math.random()*11)+".jpg' height='100px' width='100px'/></br><br>"+feature.properties.FIREDATE+"<br/><br>"+feature.properties.INCIDENTTY+"</br>");}
+            ,filter:winter_Filter});
+winter_bushy=L.geoJSON(LastFire_centroids.responseJSON,{pointToLayer: function (feature, latlng) {if(feature.properties.INCIDENTTY=="Bushfire"){
+          return L.marker(latlng, {icon: bushIcon});}
+        },onEachFeature: function (feature, layer) {
+    layer.bindPopup(feature.properties.area_ha+"Ha<br/><img id='disp_img' src='images/fire_repo/fire_"+Math.round(Math.random()*11)+".jpg' height='100px' width='100px'/></br><br>"+feature.properties.FIREDATE+"<br/><br>"+feature.properties.INCIDENTTY+"</br>");}
+    ,filter:winter_Filter});
+
+        no_season=L.geoJSON(LastFire_centroids.responseJSON,{filter:hanging_Filter});
+
+    var large_fires_prescribed=L.geoJSON(LastFire_centroids.responseJSON,{pointToLayer: function (feature, latlng) {if(feature.properties.INCIDENTTY=="Prescribed Burn"){
+              return L.marker(latlng, {icon: prescribedIcon});}
+            },onEachFeature: function (feature, layer) {
+        layer.bindPopup(feature.properties.SEASON+"<br/><img id='disp_img' src='images/fire_repo/fire_"+Math.round(Math.random()*11)+".jpg' height='100px' width='100px'/></br><br>"+feature.properties.FIREDATE+"<br/><br>"+feature.properties.INCIDENTTY+"</br>");}
+        ,filter:large_Filter});
+        var large_fires_bushy=L.geoJSON(LastFire_centroids.responseJSON,{pointToLayer: function (feature, latlng) {if(feature.properties.INCIDENTTY=="Bushfire"){
+                  return L.marker(latlng, {icon: bushIcon});}
+                },onEachFeature: function (feature, layer) {
+            layer.bindPopup(feature.properties.SEASON+"<br/><img id='disp_img' src='images/fire_repo/fire_"+Math.round(Math.random()*11)+".jpg' height='100px' width='100px'/></br><br>"+feature.properties.FIREDATE+"<br/><br>"+feature.properties.INCIDENTTY+"</br>");}
+
+            ,filter:large_Filter});
+
+
+
+    var small_fires_prescribed=L.geoJSON(LastFire_centroids.responseJSON,{pointToLayer: function (feature, latlng) {if(feature.properties.INCIDENTTY=="Prescribed Burn"){
+              return L.marker(latlng, {icon: prescribedIcon});}
+            },onEachFeature: function (feature, layer) {
+        layer.bindPopup(feature.properties.SEASON+"<br/><br>"+feature.properties.FIREDATE+"<br/><img id='disp_img' src='images/fire_repo/fire_"+Math.round(Math.random()*11)+".jpg' height='100px' width='100px'/></br><br>"+feature.properties.INCIDENTTY+"</br>");}
+        ,filter:small_Filter});
+        var small_fires_bushy=L.geoJSON(LastFire_centroids.responseJSON,{pointToLayer: function (feature, latlng) {
+          if(feature.properties.INCIDENTTY=="Bushfire"){
+                  return L.marker(latlng, {icon: bushIcon});}
+                },onEachFeature: function (feature, layer) {
+            layer.bindPopup(feature.properties.SEASON+"<br/><br>"+feature.properties.FIREDATE+"<br/><img id='disp_img' src='images/fire_repo/fire_"+Math.round(Math.random()*11)+".jpg' height='100px' width='100px'/></br><br>"+feature.properties.INCIDENTTY+"</br>");}
+          ,filter:small_Filter});
+
+
+
+    var med_fires_prescibed=L.geoJSON(LastFire_centroids.responseJSON,{pointToLayer: function (feature, latlng) {
+      if(feature.properties.INCIDENTTY=="Prescribed Burn"){
+                return L.marker(latlng, {icon: prescribedIcon});}
+                },onEachFeature: function (feature, layer) {
+        layer.bindPopup(feature.properties.SEASON+"<br/><br>"+feature.properties.FIREDATE+"<br/><img id='disp_img' src='images/fire_repo/fire_"+Math.round(Math.random()*11)+".jpg' height='100px' width='100px'/></br><br>"+feature.properties.INCIDENTTY+"</br>");
+      },filter:med_Filter});
+      var med_fires_bushy=L.geoJSON(LastFire_centroids.responseJSON,{pointToLayer: function (feature, latlng) {
+        if(feature.properties.INCIDENTTY=="Bushfire"){
+                  return L.marker(latlng, {icon: bushIcon});}
+                  },onEachFeature: function (feature, layer) {
+          layer.bindPopup(feature.properties.SEASON+"<br/><br>"+feature.properties.FIREDATE+"<br/><img id='disp_img' src='images/fire_repo/fire_"+Math.round(Math.random()*11)+".jpg' height='100px' width='100px'/></br><br>"+feature.properties.INCIDENTTY+"</br>");
+        },filter:med_Filter});
+
+
+
+
+
+     var xxlarge_fires_prescribed=L.geoJSON(LastFire_centroids.responseJSON,{pointToLayer: function (feature, latlng) {
+       if(feature.properties.INCIDENTTY=="Prescribed Burn"){
+                 return L.marker(latlng, {icon: prescribedIcon});}
+               },onEachFeature: function (feature, layer) {
+         layer.bindPopup(feature.properties.SEASON+"<br/><br>"+feature.properties.FIREDATE+"<br/><img id='disp_img' src='images/fire_repo/fire_"+Math.round(Math.random()*11)+".jpg' height='100px' width='100px'/></br><br>"+feature.properties.INCIDENTTY+"</br>");}
+       ,filter:xxlarge_Filter});
+            var xxlarge_fires_bushy=L.geoJSON(LastFire_centroids.responseJSON,{pointToLayer: function (feature, latlng) {
+              if(feature.properties.INCIDENTTY=="Bushfire"){
+                        return L.marker(latlng, {icon: bushIcon});}
+                      },onEachFeature: function (feature, layer) {
+                layer.bindPopup(feature.properties.SEASON+"<br/><br>"+feature.properties.FIREDATE+"<br/><img id='disp_img' src='images/fire_repo/fire_"+Math.round(Math.random()*11)+".jpg' height='100px' width='100px'/></br><br>"+feature.properties.INCIDENTTY+"</br>");}
+              ,filter:xxlarge_Filter});
+
+
+        var baseMaps = {
+          "RoadMap View":road_map,
+          "Terrain View":terrain_map,
+          "Satellite View":satellite_image,
+          "Light Gray":light_gray,
+          "Dark Gray":dark_gray
+};
+
+
+
+
+
+/*these shape layers are the data that have the ability to be displayed at thesame time or not*/
+var overlayMaps = {
+    "1950 to 1959":pre_1960,
+    "1960 to 1969":pre_1970,
+    "1970 to 1979":pre_1980,
+    "1980 to 1989":pre_1990,
+    "1990 to 2000":pre_2000,
+    "2000 to 2010":pre_2010,
+    "2010 to 2016":pre_2016,
+    "Summer bushfires": summer_bushy,
+"Summer prescribed":summer_prescribed,
+    "Autumn bushfires": autumn_bushy,
+"Autumn prescribed":autumn_prescribed,
+    "Spring bushfires":spring_bushy,
+    "Spring prescribed":spring_prescribed,
+    "Winter bushfires":winter_bushy,
+    "Winter prescribed":winter_prescribed,
+    "Very Large bushfires":xxlarge_fires_bushy,
+"Very Large prescribed":xxlarge_fires_prescribed,
+    "Large bushfires":large_fires_bushy,
+  "Large prescribed":large_fires_prescribed,
+    "Medium bushfires":med_fires_bushy,
+"Medium prescribed":med_fires_prescibed,
+    "Small bushfires":small_fires_bushy,
+"Small prescribed":small_fires_prescribed,
+    
+
+
+};
+
+
+
+/*basemaps can only be viewed one at a time and will contain the seasonal data , the overlays
+can be checked to show multiple layers at once*/
+L.control.layers(baseMaps, overlayMaps).addTo(map);
+
+
+/*get the last areas affected by fire and add them to slider control with the FIREYEAR sort property*/
+
+var last_fire_layers = L.geoJson(LastFire_areas.responseJSON,{style: style_area});
+sliderControl = L.control.sliderControl({position: "topright", layer: last_fire_layers, range: true});
+
+
+
+//set the properties of the slider and pass its value to one that can be referenced by html code
+$("#slider").slider(
+{
+            value:20,
+            min: 1950,
+            max: 2016,
+            step: 1,
+            animate: "fast",
+            slide: function( event, ui ) {
+                $( "#slider-value" ).html( ui.value );
+            }
+}
+);
+
+$( "#slider-value" ).html(  $('#slider').slider('value') );
+
+
+
+
+
+
+//Make sure to add the slider to the map
+map.addControl(sliderControl);
+sliderControl.startSlider();
+
+
+
+L.Control.Watermark = L.Control.extend({
+    onAdd: function(map) {
+        var img = L.DomUtil.create('img');
+
+        img.src = 'images/USA watermark.png';
+        img.style.width = '80px';
+        img.style.height='70px';
+        img.style.opacity='0.86'
+        return img;
+    },
+
+    onRemove: function(map) {
+        // Nothing to do here
+    }
+});
+
+L.control.watermark = function(opts) {
+    return new L.Control.Watermark(opts);
+}
+
+L.control.watermark({ position: 'bottomright' }).addTo(map);
+
+
+});
+
+
+
+
+
+</script>
+
+
+</body>
+
+</html>

@@ -1,0 +1,5 @@
+The app is built with functionality to make data analysis and navigation as simple as possible. The sliderControl tool will highlight all the areas affected
+ by fires throughout the years to the presently selected year. The layer tool contains the data for the areas affected throughout the seasons. 
+Alongside this is data on the areas hit by fires throughout the decades and interactive data on the size of the fire. The fire size markers can be selcted to
+ display important information on the season,type,date and the area affected by that fire vent in Hectares. To make the event more vivid, an image is 
+included with every firepoint. Take a look at the legend to get a perspective of just how hard the various districts have been hit.

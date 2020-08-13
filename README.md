@@ -4,4 +4,4 @@ A project that uses an interactive JavaScript-based UI to load geomapped data of
 centroids to GPS co-ordinates. 
 <br />Tools such as sliders and a ready jquery API ease navigation of the fire incident types down from 1950.
 <br /><br /><h3><em>Here's the app in action!</em><h3>
-<table  border="1" align="left"><tr><td><img style="border:5px solid black;" src="/demo.gif" width="700" height="500"></td></tr></table>
+<table  border="1" align="left"><tr><td><img style="border:5px solid black;" src="/demonstation.gif" width="700" height="500"></td></tr></table>
